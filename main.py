@@ -2,6 +2,8 @@ import requests
 import re
 from bs4 import BeautifulSoup
 import os
+from yt_dlp import YoutubeDL
+import ffmpeg
 
 def input_search_str():
     # searchStr = input('Enter your input:')
@@ -25,8 +27,28 @@ def IDS_to_urls(videoIDS):
         videoURLS.append(url)
     return videoURLS
 
+def make_audio_directory():
+    try:
+        os.mkdir('./Audio')
+    except OSError as error:
+        print(error)
+
+def downloadAudio(link, prefFormat):
+    ydl_opts = {
+        'format': 'm4a/bestaudio/best',
+        # ℹ️ See help(yt_dlp.postprocessor) for a list of available Postprocessors and their arguments
+        'postprocessors': [{  # Extract audio using ffmpeg
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': prefFormat,  # converts our file to mp3 with ffmpeg module
+        }],
+        'outtmpl': './Audio/%(title)s.%(ext)s' # download location is in "Audio" folder we made
+    }
+    with YoutubeDL(ydl_opts) as ydl:
+        errorCode = ydl.download(link)
+    
 ## main ##
 numVideosWanted = 10
+prefAudioFormat = 'mp3'
 
 searchStr = input_search_str()
 searchQueryStr = 'https://www.youtube.com/' + 'results?search_query=' + searchStr
@@ -36,4 +58,6 @@ text = search_YT(searchQueryStr, searchStr)
 videoIDS = (find_IDS(text))[:numVideosWanted]
 videoURLS = IDS_to_urls(videoIDS)
 
-print(videoURLS)
+# print(videoURLS)
+
+downloadAudio(videoURLS, prefAudioFormat)
