@@ -2,6 +2,7 @@ import requests
 import re
 from bs4 import BeautifulSoup
 import os
+import shutil
 from yt_dlp import YoutubeDL
 import ffmpeg
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -80,9 +81,9 @@ def clean_file_names(fileNames: list):
         newList.append(newFileName)
     return newList
 
-def make_audio_directory():
+def make_audio_directory(title: str):
     try:
-        os.mkdir('Audio')
+        os.mkdir(title)
     except OSError as error:
         print(error)
 
@@ -97,7 +98,7 @@ def download_audio(link, prefFormat):
             'key': 'FFmpegExtractAudio',
             'preferredcodec': prefFormat,  # converts our file to mp3 with ffmpeg module
         }],
-        'outtmpl': 'Audio/%(title)s.%(ext)s' # download location is in "Audio" folder we made
+        'outtmpl': 'Audio' + '/%(title)s.%(ext)s' # download location is in "Audio" folder we made
     }
     with YoutubeDL(ydl_opts) as ydl:
         errorCode = ydl.download(link)
@@ -116,6 +117,13 @@ def get_transcript(vidID):
     except Exception as e:
         print(e)
     
+def mergeLists(list1, list2):
+    """
+    merges 2 lists into 1 list of tuples
+    """
+    merged_list = [(list1[i], list2[i]) for i in range(0, len(list1))]
+    return merged_list
+
 
 ## main ##
 numVideosWanted = 2
@@ -126,38 +134,38 @@ searchStr = input_search_str()
 searchQueryStr = 'https://www.youtube.com/' + 'results?search_query=' + searchStr
 
 # # gets urls of first n videos from search (w)
-r = search_YT(searchQueryStr)
-text = r.text
+r = search_YT(searchQueryStr) 
+text = r.text                   ## HTML FROM SEARCH PAGE
 vidIDS = (find_IDS(text))
 vidIDS = (remove_vids_w_timer(vidIDS))[:numVideosWanted]
 vidURLS = IDS_to_urls(vidIDS)
-print(vidIDS)
+# print(vidIDS)
 # print(vidURLS)
 
-# request youtube page
+# request youtube pages
 textList = requestYoutubePages(vidURLS)
 
 # gets video titles
 vidTitles = (get_video_titles(textList))[:numVideosWanted]
 vidTitles = clean_file_names(vidTitles)
-print(vidTitles)
+# print(vidTitles)
 
 # tuple vid ids and titles
-# myList = []
-# [myList.append((ids, titles)) for ids in vidURLS for titles in vidTitles]
+myList = mergeLists(vidIDS, vidTitles)
 # print(myList)
 
+# # make transcript folder
+make_audio_directory('Transcripts')
+
 # # transcript section
-# for i in vidIDS:
-#     transcript = YouTubeTranscriptApi.get_transcript(i)
-#     formatter = JSONFormatter()
-#     json_formatted = formatter.format_transcripts(transcript, indent=2) # .format_transcript(transcript) turns the transcript into a JSON string.
-#     # Now we can write it out to a file.
-#     with open(f'{i}.json', 'w', encoding='utf-8') as json_file:
-#         json_file.write(json_formatted)
-#     # Now should have a new JSON file that you can easily read back into Python.
+for i in myList:
+    transcript = YouTubeTranscriptApi.get_transcript(i[0])
+    formatter = JSONFormatter()
+    json_formatted = formatter.format_transcripts(transcript, indent=2) # .format_transcript(transcript) turns the transcript into a JSON string.
+    # Now we can write it out to a file.
+    with open(os.path.join('./Transcripts', f'{i[1]}.json'), 'w', encoding='utf-8') as json_file:
+        json_file.write(json_formatted)
+    # Now should have a new JSON file that you can easily read back into Python.
 
-
-# # audio part (w)
-# make_audio_directory()
-# download_audio(vidURLS, prefAudioFormat) 
+# # audio section
+download_audio(vidURLS, prefAudioFormat) 
