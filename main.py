@@ -7,7 +7,7 @@ import ffmpeg
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import JSONFormatter
 
-headers = {'User-Agent': 'Opera/9.80 (X11; Linux i686; Ubuntu/14.10) Presto/2.12.388 Version/12.16.2'}
+headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.19582'}
 
 def input_search_str():
     """
@@ -50,22 +50,33 @@ def IDS_to_urls(videoIDS):
         videoURLS.append(url)
     return videoURLS
 
-def get_video_titles(myText: str):
+def requestYoutubePages(vidURLs):
+    """
+    returns list of HTML text of pages in input list
+    """
+    textList = []
+    for link in vidURLS:
+        r = requests.get(url=link, headers=headers)
+        textList.append(r.text)
+    return textList
+
+def get_video_titles(pageHTMLList):
     """
     captures video titles
     """
-    titleList = re.findall("\"title\":{\"runs\":\[{\"text\":\"(.*?)accessibility", myText)
-    newTitleList = []
-    for title in titleList:
-        title = title[:-5]
-        newTitleList.append(title)
-    return newTitleList
+    titleList = []
+    for text in pageHTMLList:
+        title = re.findall("<meta name=\"title\" content=\"(.*?)\">", text)
+        titleList.append(title[0])
+    return titleList
 
 def clean_file_names(fileNames: list):
     newList = []
     for fileName in fileNames:
         newFileName = fileName.replace('/', '-')
         newFileName = newFileName.replace('&amp;', '&')
+        newFileName = newFileName.replace('\\', '')
+        newFileName = newFileName.replace('&quot;', "\"")
         newList.append(newFileName)
     return newList
 
@@ -107,10 +118,10 @@ def get_transcript(vidID):
     
 
 ## main ##
-numVideosWanted = 4
+numVideosWanted = 2
 prefAudioFormat = 'mp3'
 
-# # makes link for seasch term
+# # makes link for search term
 searchStr = input_search_str()
 searchQueryStr = 'https://www.youtube.com/' + 'results?search_query=' + searchStr
 
@@ -120,18 +131,21 @@ text = r.text
 vidIDS = (find_IDS(text))
 vidIDS = (remove_vids_w_timer(vidIDS))[:numVideosWanted]
 vidURLS = IDS_to_urls(vidIDS)
-# print(vidIDS)
+print(vidIDS)
 # print(vidURLS)
 
+# request youtube page
+textList = requestYoutubePages(vidURLS)
+
 # gets video titles
-vidTitles = (get_video_titles(text))[:numVideosWanted]
+vidTitles = (get_video_titles(textList))[:numVideosWanted]
 vidTitles = clean_file_names(vidTitles)
-# print(vidTitles)
+print(vidTitles)
 
 # tuple vid ids and titles
-myList = []
-[myList.append((ids, titles)) for ids in vidURLS for titles in vidTitles]
-print(myList)
+# myList = []
+# [myList.append((ids, titles)) for ids in vidURLS for titles in vidTitles]
+# print(myList)
 
 # # transcript section
 # for i in vidIDS:
